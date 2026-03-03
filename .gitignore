@@ -1,1 +1,3 @@
-./ssh/__pycache__
+# Ignorer tous les dossiers __pycache__ et leurs fichiers
+__pycache__/
+*.pyc
