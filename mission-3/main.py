@@ -1,6 +1,7 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
+import csv
 
 internal_networks = ["10.", "172.18."]
 
@@ -33,7 +34,7 @@ def analyze_logs(file_path):
     anomalies = []
 
     with open(file_path, "r") as f:
-        text = f.read().replace("\n", " ") 
+        text = f.read().replace("\n", " ")  # fusionne tout pour gerer multi-lignes
 
     for log_text in re.findall(r"\[[\d\-T:]+Z\][^\[]*", text):
         log = parse_line(log_text.strip())
@@ -44,9 +45,9 @@ def analyze_logs(file_path):
         if not is_internal_ip(log["ip"]):
             anomalies.append((log, "IP externe suspecte"))
         if log["mfa"] in ["MFA_FAIL", "MFA_BYPASS"]:
-            anomalies.append((log, "Problème MFA"))
+            anomalies.append((log, "Probleme MFA"))
         if log["timestamp"].hour < 6 or log["timestamp"].hour > 20:
-            anomalies.append((log, "Accès hors horaires"))
+            anomalies.append((log, "Acces hors horaires"))
 
     for session_id, logs in sessions.items():
         logs_sorted = sorted(logs, key=lambda x: x["timestamp"])
@@ -59,17 +60,22 @@ def analyze_logs(file_path):
                     break
                 cumulative += logs_sorted[j]["query_count"]
             if cumulative > 50:
-                anomalies.append((logs_sorted[i], f"Rafale rapide ou volume élevé ({cumulative} requêtes)"))
+                anomalies.append((logs_sorted[i], f"Rafale rapide ou volume eleve ({cumulative} requêtes)"))
         for log in logs_sorted:
             if log["action"] == "EXPORT" and log["query_count"] > 1000:
                 anomalies.append((log, f"Extraction massive ({log['query_count']} lignes)"))
 
     return anomalies
 
+# --- Analyse ---
 file_path = "ficoba_logs.txt"
 alerts = analyze_logs(file_path)
 
-print(f"Nombre de logs analysés : {len(alerts)}\n")
-for log, reason in alerts:
-    print(f"{log['timestamp']} | {log['user']} | {reason} | {log['ip']} | {log['action']} | {log['query_count']} | Session: {log['session_id']}")
-    
+# --- Export CSV ---
+with open("ficoba_alertes.csv", "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["Timestamp", "User", "IP", "Action", "Query_Count", "Session_ID", "Anomalie"])
+    for log, reason in alerts:
+        writer.writerow([log["timestamp"], log["user"], log["ip"], log["action"], log["query_count"], log["session_id"], reason])
+
+print(f"Analyse terminee : {len(alerts)} alertes detectees. CSV 'ficoba_alertes.csv' genere.")
