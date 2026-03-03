@@ -4,7 +4,7 @@ import re
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 
-LOG_FILE = "auth.log"
+LOG_FILE = "/var/log/auth.log"
 
 BRUTE_FORCE_THRESHOLD = 10              # Nombre de tentatives
 BRUTE_FORCE_WINDOW_MINUTES = 2          # Fenêtre temporelle en minutes
